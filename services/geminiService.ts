@@ -3,7 +3,7 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ToneType, Challenge } from "../types.ts";
 
 /**
- * Manual base64 decoding implementation for audio processing.
+ * Standard PCM decoding for high-fidelity audio output.
  */
 function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -16,11 +16,10 @@ function decode(base64: string): Uint8Array {
 }
 
 /**
- * AI Writing Assistant Core Logic
- * Fixes grammar, spelling, punctuation, and phrasing instantly.
+ * Linguistic Correction Engine
+ * Optimized for 'gemini-3-flash-preview' for sub-second response times.
  */
 export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
-  // Initialize right before use to ensure API key availability
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
@@ -28,31 +27,32 @@ export async function correctText(text: string, tone: ToneType = 'Standard', hum
       model: 'gemini-3-flash-preview',
       contents: text,
       config: {
-        systemInstruction: `Fix errors in grammar, spelling, and phrasing. 
+        systemInstruction: `Professional Linguistic Editor: Correct grammar, spelling, and phrasing errors. 
 Tone: ${tone}. 
-Style: ${humanize ? 'Natural human flow' : 'Direct professional'}. 
-Output: ONLY the improved text. NO commentary.`,
+Style: ${humanize ? 'Human-like professional' : 'Concise & Clear'}. 
+Output: Return ONLY the fixed text. No commentary or metadata.`,
         temperature: humanize ? 0.4 : 0.1,
-        thinkingConfig: { thinkingBudget: 0 } // Speed-optimized
+        topP: 0.95,
+        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
     return response.text?.trim() || text;
   } catch (error) {
-    console.error("Linguistic Engine Error:", error);
+    console.error("Correction Error:", error);
     return text;
   }
 }
 
 /**
- * Educational Challenge Generator
+ * Learning Challenge Engine
  */
 export async function generateChallenges(text: string): Promise<Challenge[]> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Create 3 interactive grammar challenges for: "${text}"`,
+      contents: `Create 3 interactive grammar/vocabulary challenges for: "${text}"`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -76,13 +76,13 @@ export async function generateChallenges(text: string): Promise<Challenge[]> {
 
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Challenge Engine Error:", error);
+    console.error("Challenge Gen Error:", error);
     return [];
   }
 }
 
 /**
- * Speech Synthesis (TTS)
+ * High-Quality Speech Synthesis
  */
 export async function speakText(text: string, tone: ToneType): Promise<Uint8Array> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -109,11 +109,11 @@ export async function speakText(text: string, tone: ToneType): Promise<Uint8Arra
     });
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) throw new Error("No audio returned");
+    if (!base64Audio) throw new Error("Audio generation failed");
 
     return decode(base64Audio);
   } catch (error) {
-    console.error("TTS Engine Error:", error);
+    console.error("TTS Error:", error);
     throw error;
   }
 }

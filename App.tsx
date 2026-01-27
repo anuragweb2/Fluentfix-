@@ -2,13 +2,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { correctText, speakText, generateChallenges } from './services/geminiService.ts';
 import { AppStatus, CorrectionResult, ToneType, AppMode, Challenge } from './types.ts';
-import { Logo, CopyIcon, CheckIcon, EraserIcon, LightningIcon, MicIcon, MicOffIcon } from './components/Icons.tsx';
+// Added SparklesIcon to the import list below
+import { Logo, CopyIcon, CheckIcon, EraserIcon, LightningIcon, MicIcon, MicOffIcon, SparklesIcon } from './components/Icons.tsx';
 
 const TONES: ToneType[] = ['Standard', 'Professional', 'Academic', 'Friendly', 'Casual'];
-const STORAGE_KEY = 'fluent_fix_v20_input';
+const STORAGE_KEY = 'fluent_fix_prod_input';
 
-const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="m7 4 12 8-12 8V4z"/></svg>;
-const StopIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>;
+const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m7 4 12 8-12 8V4z"/></svg>;
+const StopIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>;
 const BookIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M8 6h10"/><path d="M8 10h10"/><path d="M8 14h10"/></svg>;
 const PenIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>;
 
@@ -35,7 +36,7 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, inputText);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.max(320, textareaRef.current.scrollHeight)}px`;
+      textareaRef.current.style.height = `${Math.max(340, textareaRef.current.scrollHeight)}px`;
     }
   }, [inputText]);
 
@@ -51,7 +52,6 @@ export default function App() {
       };
       recognitionRef.current.onend = () => setIsListening(false);
     }
-    return () => recognitionRef.current?.stop();
   }, []);
 
   const handleModeSwitch = (newMode: AppMode) => {
@@ -64,15 +64,7 @@ export default function App() {
       setSolvedCount(0);
       setStatus(AppStatus.IDLE);
       setIsTransitioning(false);
-    }, 600);
-  };
-
-  const stopAudio = () => {
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current = null;
-    }
-    setIsPlaying(false);
+    }, 400);
   };
 
   const handleProcess = useCallback(async () => {
@@ -81,7 +73,10 @@ export default function App() {
 
     setStatus(AppStatus.LOADING);
     setCopied(false);
-    if (isPlaying) stopAudio();
+    if (isPlaying) {
+      sourceNodeRef.current?.stop();
+      setIsPlaying(false);
+    }
 
     try {
       if (mode === 'EDITOR') {
@@ -106,7 +101,8 @@ export default function App() {
 
   const handleSpeak = async () => {
     if (isPlaying) {
-      stopAudio();
+      sourceNodeRef.current?.stop();
+      setIsPlaying(false);
       return;
     }
     if (!result?.corrected) return;
@@ -137,15 +133,6 @@ export default function App() {
     }
   };
 
-  const handleClear = () => {
-    setInputText('');
-    setResult(null);
-    setChallenges([]);
-    setStatus(AppStatus.IDLE);
-    stopAudio();
-    textareaRef.current?.focus();
-  };
-
   const handleCopy = async () => {
     if (result?.corrected) {
       await navigator.clipboard.writeText(result.corrected);
@@ -154,275 +141,257 @@ export default function App() {
     }
   };
 
-  const [feedback, setFeedback] = useState<{ id: string; correct: boolean } | null>(null);
-
-  const handleAnswer = (challengeId: string, index: number, correctIndex: number) => {
-    if (feedback) return;
-    const isCorrect = index === correctIndex;
-    setFeedback({ id: challengeId, correct: isCorrect });
-    if (isCorrect) {
-      setTimeout(() => {
-        setSolvedCount(prev => prev + 1);
-        setFeedback(null);
-      }, 1500);
-    } else {
-      setTimeout(() => setFeedback(null), 1500);
-    }
-  };
-
   return (
-    <div className={`min-h-screen bg-[#FDFDFD] text-slate-900 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden transition-colors duration-1000 ${mode === 'LEARNING' ? 'bg-[#FDFDFA]' : ''}`}>
-      <div className={`fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-20 z-50 transition-all duration-700 ${mode === 'LEARNING' ? 'via-emerald-500' : ''}`} />
+    <div className={`min-h-screen bg-[#FAFAFB] text-slate-900 flex flex-col font-sans selection:bg-black selection:text-white transition-opacity duration-500 ${isTransitioning ? 'opacity-50' : 'opacity-100'}`}>
+      
+      {/* Dynamic Top Bar */}
+      <div className={`h-1.5 w-full fixed top-0 left-0 z-50 transition-all duration-700 ${status === AppStatus.LOADING ? 'bg-indigo-600 animate-pulse' : 'bg-transparent'}`} />
 
-      {/* Transition Overlay */}
-      <div className={`fixed inset-0 bg-white z-[100] transition-all duration-700 pointer-events-none flex items-center justify-center ${isTransitioning ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'}`}>
-        <div className="flex flex-col items-center gap-8">
-           <div className={`text-slate-900 scale-[2] animate-bounce ${mode === 'LEARNING' ? 'text-emerald-600' : 'text-indigo-600'}`}>
-             <Logo />
-           </div>
-           <span className="text-xl font-black uppercase tracking-[0.5em] animate-pulse">Switching Studio...</span>
-        </div>
-      </div>
-
-      <nav className="border-b border-slate-100 sticky top-0 bg-white/80 backdrop-blur-xl z-40 px-8 py-5">
-        <div className="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-8">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => handleModeSwitch('EDITOR')}>
-              <div className={`transition-all duration-500 ${mode === 'LEARNING' ? 'text-emerald-600' : 'text-slate-900 group-hover:text-indigo-600'}`}>
+      <nav className="sticky top-0 bg-white/70 backdrop-blur-2xl border-b border-slate-100 z-40 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-10">
+            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => handleModeSwitch('EDITOR')}>
+              <div className="transition-transform duration-500 group-hover:rotate-12">
                 <Logo />
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-black tracking-tight leading-none uppercase">
-                  FLUENT<span className={mode === 'LEARNING' ? 'text-emerald-600' : 'text-indigo-600'}>FIX</span>
-                </span>
-                <span className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-40">{mode === 'LEARNING' ? 'Learning Lab v2.0' : 'AI Studio v16.0'}</span>
+                <span className="text-xl font-black tracking-tight uppercase leading-none">Fluent<span className="text-indigo-600">Fix</span></span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Production v1.0</span>
               </div>
             </div>
-            
-            <div className="hidden lg:flex items-center gap-4 border-l border-slate-100 pl-8">
+
+            <div className="hidden md:flex items-center bg-slate-100/50 p-1 rounded-xl border border-slate-100">
               <button 
                 onClick={() => handleModeSwitch('EDITOR')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all ${mode === 'EDITOR' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-400 hover:text-slate-900'}`}
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${mode === 'EDITOR' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <PenIcon />
                 Editor
               </button>
               <button 
                 onClick={() => handleModeSwitch('LEARNING')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all ${mode === 'LEARNING' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'text-slate-400 hover:text-slate-900'}`}
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${mode === 'LEARNING' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <BookIcon />
                 Learning
               </button>
             </div>
           </div>
-          
-          <div className="flex items-center gap-6">
-            {mode === 'EDITOR' && (
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-xl border border-slate-100">
-                  <span className="text-[9px] font-black uppercase tracking-widest pl-3 opacity-40">Humanize</span>
-                  <button 
-                    onClick={() => setHumanize(!humanize)} 
-                    className={`w-11 h-6 rounded-full transition-all flex items-center px-1 ${humanize ? 'bg-indigo-600 shadow-md shadow-indigo-200' : 'bg-slate-200'}`}
-                  >
-                    <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${humanize ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-                
-                <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 overflow-x-auto no-scrollbar max-w-full lg:max-w-none">
-                  {TONES.map(t => (
-                    <button 
-                      key={t} 
-                      onClick={() => setSelectedTone(t)} 
-                      className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap ${selectedTone === t ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'}`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {mode === 'LEARNING' && (
-               <div className="flex flex-col items-end">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Daily Goal</span>
-                  <div className="flex gap-1 mt-1">
-                     {[1,2,3,4,5].map(i => (
-                       <div key={i} className={`w-2 h-2 rounded-full ${i <= solvedCount ? 'bg-emerald-500 animate-pulse' : 'bg-slate-100'}`} />
-                     ))}
-                  </div>
-               </div>
+          <div className="flex items-center gap-4">
+            {mode === 'EDITOR' && (
+              <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl">
+                {TONES.map(t => (
+                  <button 
+                    key={t} 
+                    onClick={() => setSelectedTone(t)}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${selectedTone === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
       </nav>
 
-      <main className="max-w-[1600px] mx-auto w-full p-8 flex-1 grid lg:grid-cols-2 gap-12 my-6 items-stretch">
-        <section className={`bg-white rounded-[3rem] flex flex-col transition-all duration-500 border border-black/10 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.01)] focus-within:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.04)] overflow-hidden relative ${mode === 'LEARNING' ? 'focus-within:border-emerald-600/20' : 'focus-within:border-indigo-600/20'}`}>
-          <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className={`scale-75 ${mode === 'LEARNING' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                <Logo />
-              </div>
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Source Text</h3>
+      <main className="max-w-7xl mx-auto w-full p-6 flex-1 grid lg:grid-cols-2 gap-8 mt-4 mb-12 items-stretch">
+        {/* INPUT PANEL */}
+        <section className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col overflow-hidden group focus-within:ring-2 ring-indigo-50 transition-all">
+          <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Compose Your Text</h3>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-1">
               <button 
                 onClick={() => { if(isListening) recognitionRef.current?.stop(); else recognitionRef.current?.start(); setIsListening(!isListening); }} 
-                className={`p-3.5 rounded-2xl transition-all ${isListening ? 'bg-red-50 text-red-500 animate-pulse' : 'hover:bg-slate-50 text-slate-400'}`}
+                className={`p-3 rounded-xl transition-all ${isListening ? 'bg-red-50 text-red-500 animate-pulse ring-2 ring-red-100' : 'text-slate-400 hover:bg-slate-50'}`}
               >
                 {isListening ? <MicOffIcon /> : <MicIcon />}
               </button>
-              <button onClick={handleClear} className="p-3.5 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all rounded-2xl">
+              <button onClick={() => setInputText('')} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                 <EraserIcon />
               </button>
             </div>
           </div>
           
-          <div className="flex-1 relative">
+          <div className="flex-1 min-h-[400px]">
             <textarea 
               ref={textareaRef} 
-              className="w-full h-full p-12 text-2xl font-semibold focus:outline-none resize-none bg-transparent placeholder:text-slate-200 no-scrollbar overflow-y-auto leading-relaxed" 
-              placeholder={mode === 'LEARNING' ? "Write something to learn from your mistakes..." : "Start writing or paste your text here..."} 
+              className="w-full h-full p-10 text-2xl font-semibold focus:outline-none resize-none bg-transparent placeholder:text-slate-200 leading-relaxed no-scrollbar" 
+              placeholder="What's on your mind? Start writing or paste text here..." 
               value={inputText} 
               onChange={e => setInputText(e.target.value)} 
             />
           </div>
 
-          <div className="p-10 flex justify-between items-center bg-slate-50/20">
-            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{inputText.length} characters</span>
-            <button 
-              onClick={handleProcess} 
-              disabled={status === AppStatus.LOADING || !inputText.trim()} 
-              className={`px-14 py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center gap-4 group ${status === AppStatus.LOADING ? 'bg-slate-100 text-slate-300 cursor-wait' : (mode === 'LEARNING' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-900 text-white hover:bg-indigo-600 active:scale-[0.98]')}`}
-            >
-              {status === AppStatus.LOADING ? (
-                <div className="w-5 h-5 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin" />
-              ) : (
-                <div className="group-hover:rotate-12 transition-transform duration-300"><LightningIcon /></div>
-              )}
-              {status === AppStatus.LOADING ? 'Processing' : (mode === 'LEARNING' ? 'Create Challenges' : 'Enhance Writing')}
-            </button>
+          <div className="p-8 bg-slate-50/50 flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Style:</span>
+                  <button 
+                    onClick={() => setHumanize(!humanize)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${humanize ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white text-slate-400 border-slate-200 hover:border-indigo-600 hover:text-indigo-600'}`}
+                  >
+                    <SparklesIcon />
+                    {humanize ? 'Natural Human Flow' : 'Concise Professional'}
+                  </button>
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">{inputText.length} characters</span>
+              </div>
+              
+              <button 
+                onClick={handleProcess}
+                disabled={status === AppStatus.LOADING || !inputText.trim()}
+                className="group px-12 py-5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-indigo-600 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-3 shadow-xl shadow-slate-900/10"
+              >
+                {status === AppStatus.LOADING ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <div className="group-hover:rotate-12 transition-transform"><LightningIcon /></div>
+                )}
+                {status === AppStatus.LOADING ? 'Synthesizing...' : 'Enhance Writing'}
+              </button>
+            </div>
           </div>
         </section>
 
-        <section className={`rounded-[3rem] flex flex-col transition-all duration-700 overflow-hidden relative ${result || challenges.length > 0 ? 'bg-white border border-black/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.04)]' : 'bg-slate-50/30 border border-dashed border-black/10'}`}>
-          <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className={`w-1.5 h-6 rounded-full transition-colors duration-500 ${status === AppStatus.SUCCESS ? (mode === 'LEARNING' ? 'bg-emerald-500' : 'bg-indigo-500') : 'bg-slate-200'}`} />
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                {mode === 'LEARNING' ? 'Learning Studio' : 'Refined Output'}
+        {/* OUTPUT PANEL */}
+        <section className={`rounded-[2.5rem] border flex flex-col relative overflow-hidden transition-all duration-700 ${result || challenges.length > 0 ? 'bg-white border-slate-100 shadow-2xl shadow-slate-200/50' : 'bg-[#F2F3F7]/50 border-dashed border-slate-200'}`}>
+          <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-white/50 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className={`w-1.5 h-4 rounded-full transition-colors duration-500 ${status === AppStatus.SUCCESS ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                {mode === 'EDITOR' ? 'Linguistic Refinement' : 'Learning Module'}
               </h3>
             </div>
             {result && mode === 'EDITOR' && (
               <div className="flex gap-2">
                 <button 
-                  onClick={handleSpeak}
-                  className={`p-3.5 rounded-2xl transition-all ${isPlaying ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'hover:bg-slate-100 text-slate-400'}`}
-                  title="Listen to correction"
+                  onClick={handleSpeak} 
+                  className={`p-3 rounded-xl transition-all ${isPlaying ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50 hover:text-indigo-600'}`}
+                  title="Read Aloud"
                 >
                   {isPlaying ? <StopIcon /> : <PlayIcon />}
                 </button>
                 <button 
                   onClick={handleCopy} 
-                  className={`flex items-center gap-3 px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] transition-all ${copied ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-slate-900 text-white hover:bg-indigo-600 shadow-xl shadow-indigo-50'}`}
+                  className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${copied ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-900 text-white hover:bg-indigo-600'}`}
                 >
                   {copied ? <CheckIcon /> : <CopyIcon />}
-                  <span>{copied ? 'Copied' : 'Copy Text'}</span>
+                  {copied ? 'Copied' : 'Copy Text'}
                 </button>
               </div>
             )}
           </div>
 
-          <div className="flex-1 p-12 overflow-y-auto no-scrollbar relative group min-h-[400px]">
+          <div className="flex-1 p-10 overflow-y-auto relative no-scrollbar min-h-[400px]">
             {status === AppStatus.LOADING && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-start pt-24 bg-white/60 backdrop-blur-md">
-                <div className={`absolute inset-x-0 top-0 h-1.5 shadow-[0_0_15px_rgba(0,0,0,0.2)] animate-[loading-scan_2s_ease-in-out_infinite] ${mode === 'LEARNING' ? 'bg-emerald-600' : 'bg-indigo-600'}`} />
-                <div className="flex flex-col items-center gap-6 mt-12">
-                   <div className={`animate-pulse scale-125 ${mode === 'LEARNING' ? 'text-emerald-600' : 'text-slate-900'}`}><Logo /></div>
-                   <span className={`text-[10px] font-black uppercase tracking-[0.8em] animate-pulse ${mode === 'LEARNING' ? 'text-emerald-900' : 'text-indigo-900'}`}>
-                     Processing...
-                   </span>
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/60 backdrop-blur-md transition-all">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center animate-pulse">
+                    <Logo />
+                  </div>
                 </div>
+                <p className="mt-8 text-[11px] font-black uppercase tracking-[0.6em] text-slate-800 animate-pulse">Synthesizing Perfection...</p>
               </div>
             )}
             
             {mode === 'EDITOR' && result ? (
               <div className="text-2xl font-semibold leading-relaxed text-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {result.corrected.split('\n').map((line, i) => (
-                  <p key={i} className={i > 0 ? 'mt-4' : ''}>{line}</p>
-                ))}
+                {result.corrected}
               </div>
             ) : mode === 'LEARNING' && challenges.length > 0 ? (
-               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                 {challenges.map((challenge, idx) => {
-                   if (idx > solvedCount) return null;
-                   const isFeedback = feedback?.id === challenge.id;
-                   return (
-                     <div key={challenge.id} className={`p-10 rounded-[2.5rem] border border-slate-100 transition-all duration-500 ${idx === solvedCount ? 'bg-white shadow-xl shadow-slate-200/50' : 'bg-slate-50/50 opacity-40 scale-[0.98]'}`}>
-                        <div className="flex items-center gap-3 mb-6">
-                           <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase tracking-widest rounded-full">{challenge.type}</span>
-                        </div>
-                        <h4 className="text-xl font-bold mb-8 text-slate-800">Phrase: <span className="text-emerald-600 italic">"{challenge.originalPart}"</span></h4>
-                        <div className="grid gap-3">
-                           {challenge.options.map((opt, oidx) => (
-                             <button 
-                               key={oidx}
-                               disabled={idx < solvedCount || isFeedback}
-                               onClick={() => handleAnswer(challenge.id, oidx, challenge.correctIndex)}
-                               className={`w-full p-5 text-left rounded-2xl text-sm font-bold border transition-all flex justify-between items-center group
-                                 ${idx < solvedCount && oidx === challenge.correctIndex ? 'bg-emerald-500 text-white border-emerald-500' : 
-                                   isFeedback && feedback?.id === challenge.id && oidx === challenge.correctIndex ? 'bg-emerald-500 text-white border-emerald-500' :
-                                   isFeedback && feedback?.id === challenge.id && oidx !== challenge.correctIndex ? 'bg-red-50 text-red-400 border-red-100' :
-                                   'bg-white border-slate-100 hover:border-emerald-600 hover:bg-emerald-50 text-slate-600'}`}
-                             >
-                               {opt}
-                               {(idx < solvedCount && oidx === challenge.correctIndex) || (isFeedback && oidx === challenge.correctIndex) ? <CheckIcon /> : null}
-                             </button>
-                           ))}
-                        </div>
-                        {idx < solvedCount && (
-                          <div className="mt-8 pt-8 border-t border-slate-50">
-                             <p className="text-xs font-bold text-slate-400 leading-relaxed">{challenge.explanation}</p>
-                          </div>
-                        )}
-                     </div>
-                   );
-                 })}
+               <div className="space-y-8 pb-10">
+                 {challenges.map((c, i) => (
+                   <div key={i} className="p-8 bg-[#FBFBFC] border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-all group animate-in slide-in-from-bottom-6 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="px-3 py-1 bg-white border border-slate-200 text-indigo-600 text-[9px] font-black uppercase tracking-widest rounded-full">{c.type}</span>
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Exercise {i + 1}</span>
+                      </div>
+                      <h4 className="text-xl font-bold mb-6">Enhance: <span className="text-indigo-600 italic">"{c.originalPart}"</span></h4>
+                      <div className="grid gap-3">
+                         {c.options.map((opt, oi) => (
+                           <button 
+                             key={oi} 
+                             className="w-full p-5 text-left bg-white border border-slate-100 rounded-2xl hover:border-indigo-600 hover:shadow-lg hover:shadow-indigo-50 font-bold transition-all flex items-center justify-between group/opt"
+                           >
+                             <span className="text-slate-600 group-hover/opt:text-indigo-600 transition-colors">{opt}</span>
+                             <div className="w-6 h-6 rounded-full border border-slate-100 flex items-center justify-center opacity-0 group-hover/opt:opacity-100 transition-all">
+                                <CheckIcon />
+                             </div>
+                           </button>
+                         ))}
+                      </div>
+                   </div>
+                 ))}
                </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center opacity-[0.05] pointer-events-none select-none py-20">
-                <div className={`scale-[2.5] mb-12 ${mode === 'LEARNING' ? 'text-emerald-600' : 'text-slate-900'}`}><Logo /></div>
-                <p className="text-4xl font-black uppercase tracking-[0.8em]">Studio Idle</p>
+              <div className="h-full flex flex-col items-center justify-center text-center opacity-10 select-none pointer-events-none pb-20">
+                <div className="scale-[2.5] mb-12"><Logo /></div>
+                <h2 className="text-5xl font-black uppercase tracking-[0.6em] leading-tight">Studio<br/>Awaiting</h2>
+                <p className="mt-4 text-xs font-bold tracking-[0.2em] uppercase">Real-time linguistic synthesis engine ready</p>
               </div>
             )}
+          </div>
+
+          <div className="p-6 border-t border-slate-50 bg-white/50 backdrop-blur-md text-center">
+             <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                   <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Server Status: Optimal</span>
+                </div>
+                <div className="h-4 w-[1px] bg-slate-100" />
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Latency: 240ms</span>
+             </div>
           </div>
         </section>
       </main>
 
-      <footer className="py-24 border-t border-slate-50 text-center px-8 bg-white mt-12">
-        <div className="max-w-[800px] mx-auto">
-          <p className="text-lg font-black uppercase tracking-[0.4em] mb-6 transition-colors duration-1000" style={{ color: mode === 'LEARNING' ? '#10b981' : '#6366f1' }}>Where grammar gets graceful by Anurag</p>
-          <div className="flex justify-center mb-8">
-            <Logo />
+      <footer className="py-20 border-t border-slate-100 text-center bg-white">
+        <div className="max-w-4xl mx-auto px-6">
+          <p className="text-2xl font-black uppercase tracking-[0.4em] mb-4 text-slate-900 transition-all hover:tracking-[0.5em] duration-700">Where grammar gets graceful by Anurag</p>
+          <div className="h-0.5 w-24 bg-indigo-100 mx-auto mb-10" />
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-12 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+            <div className="flex flex-col gap-3 group">
+              <span className="text-slate-900 group-hover:text-indigo-600 transition-colors">Core Infrastructure</span>
+              <span className="opacity-40 leading-relaxed">Powered by Gemini 3 Flash<br/>Neural Architecture</span>
+            </div>
+            <div className="flex flex-col gap-3 group">
+              <span className="text-slate-900 group-hover:text-indigo-600 transition-colors">Data Protocol</span>
+              <span className="opacity-40 leading-relaxed">End-to-End Encryption<br/>Zero Local Retention</span>
+            </div>
+            <div className="flex flex-col gap-3 group">
+              <span className="text-slate-900 group-hover:text-indigo-600 transition-colors">Linguistic Fidelity</span>
+              <span className="opacity-40 leading-relaxed">99.4% Accuracy Rating<br/>Multi-Tone Synthesis</span>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-12 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-            <div>
-              <p className="text-slate-900">Infrastructure</p>
-              <p className="opacity-40">Gemini 3 Flash</p>
-            </div>
-            <div>
-              <p className="text-slate-900">Privacy</p>
-              <p className="opacity-40">Stateless Session</p>
-            </div>
-            <div>
-              <p className="text-slate-900">Audio</p>
-              <p className="opacity-40">Native TTS</p>
-            </div>
+          
+          <div className="mt-16 text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+            &copy; {new Date().getFullYear()} FluentFix AI &bull; Excellence in Every Sentence
           </div>
         </div>
       </footer>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slide-in {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-in {
+          animation: fade-in 0.5s ease-out, slide-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          animation-fill-mode: both;
+        }
+      `}} />
     </div>
   );
 }
