@@ -2,6 +2,9 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ToneType, Challenge } from "../types.ts";
 
+/**
+ * Manual base64 decoding implementation for audio processing.
+ */
 function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -12,25 +15,25 @@ function decode(base64: string): Uint8Array {
   return bytes;
 }
 
-// Global initialization using the injected environment variable
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
+/**
+ * AI Writing Assistant Core Logic
+ * Fixes grammar, spelling, punctuation, and phrasing instantly.
+ */
 export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
+  // Initialize right before use to ensure API key availability
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: text,
       config: {
-        systemInstruction: `You are a world-class linguistic editor. 
-        TASK: Correct grammar, spelling, and phrasing errors while maintaining original meaning.
-        TONE: ${tone}.
-        ${humanize ? 'STYLE: Natural and human-like rhythms.' : 'STYLE: Professional and clear.'}
-        
-        RULES:
-        - Return ONLY the corrected text.
-        - NO commentary or explanations.`,
+        systemInstruction: `Fix errors in grammar, spelling, and phrasing. 
+Tone: ${tone}. 
+Style: ${humanize ? 'Natural human flow' : 'Direct professional'}. 
+Output: ONLY the improved text. NO commentary.`,
         temperature: humanize ? 0.4 : 0.1,
-        thinkingConfig: { thinkingBudget: 0 }
+        thinkingConfig: { thinkingBudget: 0 } // Speed-optimized
       },
     });
 
@@ -41,11 +44,15 @@ export async function correctText(text: string, tone: ToneType = 'Standard', hum
   }
 }
 
+/**
+ * Educational Challenge Generator
+ */
 export async function generateChallenges(text: string): Promise<Challenge[]> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Create 3 grammar challenges based on: "${text}"`,
+      contents: `Create 3 interactive grammar challenges for: "${text}"`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -74,7 +81,11 @@ export async function generateChallenges(text: string): Promise<Challenge[]> {
   }
 }
 
+/**
+ * Speech Synthesis (TTS)
+ */
 export async function speakText(text: string, tone: ToneType): Promise<Uint8Array> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const voiceMap: Record<ToneType, string> = {
     'Standard': 'Kore',
     'Professional': 'Charon',
