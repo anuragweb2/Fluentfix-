@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { ToneType } from "../types";
+import { ToneType } from "../types.ts";
 
 const getSystemInstruction = (tone: ToneType, humanize: boolean) => {
   const toneMap: Record<ToneType, string> = {

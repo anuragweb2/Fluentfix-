@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { correctText } from './services/geminiService';
-import { AppStatus, CorrectionResult, ToneType } from './types';
-import { Logo, CopyIcon, CheckIcon, EraserIcon, LightningIcon, MicIcon, MicOffIcon } from './components/Icons';
+import { correctText } from './services/geminiService.ts';
+import { AppStatus, CorrectionResult, ToneType } from './types.ts';
+import { Logo, CopyIcon, CheckIcon, EraserIcon, LightningIcon, MicIcon, MicOffIcon } from './components/Icons.tsx';
 
 const TONES: ToneType[] = ['Standard', 'Professional', 'Friendly', 'Casual', 'Academic'];
 const MAX_CHARS = 5000;
