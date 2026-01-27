@@ -5,7 +5,7 @@ import { AppStatus, CorrectionResult, ToneType } from './types.ts';
 import { Logo, CopyIcon, CheckIcon, EraserIcon, LightningIcon, MicIcon, MicOffIcon } from './components/Icons.tsx';
 
 const TONES: ToneType[] = ['Standard', 'Professional', 'Friendly', 'Casual', 'Academic'];
-const STORAGE_KEY = 'ff_v11_input';
+const STORAGE_KEY = 'ff_v12_input';
 
 export default function App() {
   const [inputText, setInputText] = useState(() => localStorage.getItem(STORAGE_KEY) || '');
@@ -15,7 +15,6 @@ export default function App() {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [copied, setCopied] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [showKeyPrompt, setShowKeyPrompt] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -60,23 +59,10 @@ export default function App() {
       });
       setStatus(AppStatus.SUCCESS);
     } catch (e: any) {
-      console.error(e);
-      if (e.message === "API_KEY_MISSING" || e.message === "API_KEY_INVALID") {
-        setShowKeyPrompt(true);
-        setStatus(AppStatus.IDLE);
-      } else {
-        setStatus(AppStatus.ERROR);
-      }
+      console.error("Correction failed:", e);
+      setStatus(AppStatus.ERROR);
     }
   }, [inputText, selectedTone, status, humanize]);
-
-  const handleSelectKey = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
-      setShowKeyPrompt(false);
-      handleCorrect();
-    }
-  };
 
   const handleClear = () => {
     setInputText('');
@@ -94,20 +80,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black flex flex-col font-sans selection:bg-black selection:text-white">
-      {showKeyPrompt && (
-        <div className="fixed inset-0 z-[100] bg-white flex items-center justify-center p-6 text-center animate-in fade-in duration-300">
-          <div className="max-w-md w-full space-y-8">
-            <div className="flex justify-center scale-125"><Logo /></div>
-            <h1 className="text-4xl font-black uppercase tracking-tighter">API Key Required</h1>
-            <p className="text-black/60 font-medium">To run this in the browser, you must select an API key. This will be securely injected into your session.</p>
-            <button onClick={handleSelectKey} className="w-full py-5 bg-black text-white rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-2xl">
-              Select API Key
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-white text-black flex flex-col font-sans selection:bg-black selection:text-white overflow-hidden">
       <nav className="border-b border-black/5 sticky top-0 bg-white/95 backdrop-blur-md z-40 px-6 py-4">
         <div className="max-w-[1400px] mx-auto flex flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-6">
@@ -117,15 +90,23 @@ export default function App() {
             </div>
             <div className="flex items-center gap-3 border-l border-black/10 pl-6">
               <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Humanize</span>
-              <button onClick={() => setHumanize(!humanize)} className={`w-10 h-5 rounded-full transition-all flex items-center px-1 ${humanize ? 'bg-indigo-600' : 'bg-black/10'}`}>
+              <button 
+                onClick={() => setHumanize(!humanize)} 
+                className={`w-10 h-5 rounded-full transition-all flex items-center px-1 ${humanize ? 'bg-indigo-600' : 'bg-black/10'}`}
+                aria-label="Toggle Humanize"
+              >
                 <div className={`w-3 h-3 bg-white rounded-full transition-transform ${humanize ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
             </div>
           </div>
           
-          <div className="flex items-center gap-1 bg-black/[0.03] p-1 rounded-full border border-black/5">
+          <div className="flex items-center gap-1 bg-black/[0.03] p-1 rounded-full border border-black/5 no-scrollbar overflow-x-auto">
             {TONES.map(t => (
-              <button key={t} onClick={() => setSelectedTone(t)} className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${selectedTone === t ? 'bg-black text-white shadow-lg' : 'text-black/40 hover:text-black'}`}>
+              <button 
+                key={t} 
+                onClick={() => setSelectedTone(t)} 
+                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${selectedTone === t ? 'bg-black text-white shadow-lg' : 'text-black/40 hover:text-black'}`}
+              >
                 {t}
               </button>
             ))}
@@ -133,34 +114,55 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="max-w-[1400px] mx-auto w-full p-6 flex-1 grid lg:grid-cols-2 gap-8 my-4">
-        <section className="bg-white border-2 border-black/10 rounded-[2rem] flex flex-col transition-all focus-within:border-black">
-          <div className="p-4 border-b border-black/5 flex justify-between items-center px-8 bg-slate-50/50 rounded-t-[2rem]">
+      <main className="max-w-[1400px] mx-auto w-full p-6 flex-1 grid lg:grid-cols-2 gap-8 my-4 overflow-hidden">
+        <section className="bg-white border-2 border-black/10 rounded-[2rem] flex flex-col transition-all focus-within:border-black overflow-hidden">
+          <div className="p-4 border-b border-black/5 flex justify-between items-center px-8 bg-slate-50/50">
             <span className="text-[10px] font-black uppercase tracking-widest opacity-30">Draft</span>
             <div className="flex gap-2">
-              <button onClick={() => { if(isListening) recognitionRef.current?.stop(); else recognitionRef.current?.start(); setIsListening(!isListening); }} className={`p-2 rounded-xl transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'hover:bg-black hover:text-white opacity-40 hover:opacity-100'}`}>
+              <button 
+                onClick={() => { if(isListening) recognitionRef.current?.stop(); else recognitionRef.current?.start(); setIsListening(!isListening); }} 
+                className={`p-2 rounded-xl transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'hover:bg-black hover:text-white opacity-40 hover:opacity-100'}`}
+                title="Voice Input"
+              >
                 {isListening ? <MicOffIcon /> : <MicIcon />}
               </button>
-              <button onClick={handleClear} className="p-2 opacity-40 hover:opacity-100 hover:text-red-600 transition-all rounded-xl">
+              <button 
+                onClick={handleClear} 
+                className="p-2 opacity-40 hover:opacity-100 hover:text-red-600 transition-all rounded-xl"
+                title="Clear Text"
+              >
                 <EraserIcon />
               </button>
             </div>
           </div>
-          <textarea ref={textareaRef} className="flex-1 p-8 text-2xl font-bold focus:outline-none resize-none bg-transparent placeholder:text-black/5 no-scrollbar" placeholder="Paste text..." value={inputText} onChange={e => setInputText(e.target.value)} />
-          <div className="p-6 flex justify-between items-center">
-            <span className="text-[10px] font-black opacity-20 uppercase tracking-widest">{inputText.length} chars</span>
-            <button onClick={handleCorrect} disabled={status === AppStatus.LOADING || !inputText.trim()} className={`px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 ${status === AppStatus.LOADING ? 'bg-black/5 text-black/20' : 'bg-black text-white hover:bg-indigo-600 shadow-xl active:scale-95'}`}>
+          <textarea 
+            ref={textareaRef} 
+            className="flex-1 p-8 text-2xl font-bold focus:outline-none resize-none bg-transparent placeholder:text-black/5 no-scrollbar" 
+            placeholder="Paste text here..." 
+            value={inputText} 
+            onChange={e => setInputText(e.target.value)} 
+          />
+          <div className="p-6 flex justify-between items-center bg-white">
+            <span className="text-[10px] font-black opacity-20 uppercase tracking-widest">{inputText.length} characters</span>
+            <button 
+              onClick={handleCorrect} 
+              disabled={status === AppStatus.LOADING || !inputText.trim()} 
+              className={`px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 ${status === AppStatus.LOADING ? 'bg-black/5 text-black/20 cursor-wait' : 'bg-black text-white hover:bg-indigo-600 shadow-xl active:scale-95'}`}
+            >
               {status === AppStatus.LOADING ? <div className="w-4 h-4 border-2 border-black/10 border-t-black rounded-full animate-spin" /> : <LightningIcon />}
               {status === AppStatus.LOADING ? 'Analysing' : 'Fix Now'}
             </button>
           </div>
         </section>
 
-        <section className={`border-2 rounded-[2rem] flex flex-col transition-all duration-200 ${result ? 'border-black bg-white shadow-2xl' : 'border-black/5 bg-slate-50/10'}`}>
-          <div className="p-4 border-b border-black/5 flex justify-between items-center px-8 bg-slate-50/50 rounded-t-[2rem]">
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-30">Refined</span>
+        <section className={`border-2 rounded-[2rem] flex flex-col transition-all duration-200 overflow-hidden ${result ? 'border-black bg-white shadow-2xl' : 'border-black/5 bg-slate-50/10'}`}>
+          <div className="p-4 border-b border-black/5 flex justify-between items-center px-8 bg-slate-50/50">
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-30">Refined Result</span>
             {result && (
-              <button onClick={handleCopy} className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${copied ? 'bg-emerald-600 text-white' : 'bg-black text-white hover:bg-indigo-600'}`}>
+              <button 
+                onClick={handleCopy} 
+                className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${copied ? 'bg-emerald-600 text-white' : 'bg-black text-white hover:bg-indigo-600'}`}
+              >
                 {copied ? <CheckIcon /> : <CopyIcon />} {copied ? 'Copied' : 'Copy'}
               </button>
             )}
@@ -174,28 +176,30 @@ export default function App() {
               </div>
             )}
             {result && (
-              <div className="text-2xl font-black leading-relaxed text-black animate-in fade-in duration-200">
+              <div className="text-2xl font-black leading-relaxed text-black animate-in fade-in duration-300">
                 {result.corrected}
               </div>
             )}
             {!result && status !== AppStatus.LOADING && (
-              <div className="h-full flex items-center justify-center opacity-[0.02] select-none pointer-events-none scale-150"><Logo /></div>
+              <div className="h-full flex items-center justify-center opacity-[0.02] select-none pointer-events-none scale-150">
+                <Logo />
+              </div>
             )}
           </div>
-          <div className="p-6 text-center border-t border-black/5">
+          <div className="p-6 text-center border-t border-black/5 bg-white">
              <span className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em]">
-               {result ? 'Correction Delivered' : 'System Ready'}
+               {status === AppStatus.ERROR ? 'Error Occurred' : (result ? 'Correction Delivered' : 'System Ready')}
              </span>
           </div>
         </section>
       </main>
 
-      <footer className="py-20 border-t border-black/5 text-center px-6">
+      <footer className="py-16 border-t border-black/5 text-center px-6 mt-auto">
         <h2 className="text-3xl font-black uppercase tracking-[0.5em] mb-4 select-none">Made with love by Anurag</h2>
         <div className="h-1.5 w-16 bg-indigo-600 mx-auto rounded-full mb-8" />
-        <div className="flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest opacity-30">
-          <span>v11.0 CORE</span>
-          <span>Hyper-Speed Delivery</span>
+        <div className="flex flex-wrap justify-center gap-8 text-[10px] font-black uppercase tracking-widest opacity-30">
+          <span>v12.0 HYPERCORE</span>
+          <span>Instant Processing</span>
           <span>Privacy Secured</span>
         </div>
       </footer>
