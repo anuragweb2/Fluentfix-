@@ -2,9 +2,6 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ToneType, Challenge } from "../types.ts";
 
-/**
- * Manual base64 decoding implementation as required by guidelines.
- */
 function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -15,32 +12,24 @@ function decode(base64: string): Uint8Array {
   return bytes;
 }
 
-const ai = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// Global initialization using the injected environment variable
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
-  // Using Flash model for near-instant results as requested
-  const modelName = 'gemini-3-flash-preview';
-  
   try {
-    const response = await ai().models.generateContent({
-      model: modelName,
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
       contents: text,
       config: {
-        systemInstruction: `You are a world-class senior linguistic editor. 
-        Your goal: Absolute perfection in English. 
-        
-        TASK:
-        1. Fix ALL errors (grammar, spelling, punctuation).
-        2. Adjust phrasing to be clear and sophisticated.
-        3. Tone: ${tone}.
-        4. ${humanize ? 'HUMANIZE: Use varied structures to mimic a professional human writer.' : 'OPTIMIZE: Ensure maximum clarity and precision.'}
+        systemInstruction: `You are a world-class linguistic editor. 
+        TASK: Correct grammar, spelling, and phrasing errors while maintaining original meaning.
+        TONE: ${tone}.
+        ${humanize ? 'STYLE: Natural and human-like rhythms.' : 'STYLE: Professional and clear.'}
         
         RULES:
-        - Return ONLY the improved text. 
-        - NO commentary. NO explanations.`,
+        - Return ONLY the corrected text.
+        - NO commentary or explanations.`,
         temperature: humanize ? 0.4 : 0.1,
-        topP: 0.95,
-        // Disable thinking budget for maximum speed
         thinkingConfig: { thinkingBudget: 0 }
       },
     });
@@ -54,10 +43,9 @@ export async function correctText(text: string, tone: ToneType = 'Standard', hum
 
 export async function generateChallenges(text: string): Promise<Challenge[]> {
   try {
-    const response = await ai().models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Create 3 interactive grammar/phrasing challenges based on this text: "${text}".
-      For each challenge, identify a mistake, provide 3 correction options, and a brief explanation.`,
+      contents: `Create 3 grammar challenges based on: "${text}"`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -66,10 +54,10 @@ export async function generateChallenges(text: string): Promise<Challenge[]> {
             type: Type.OBJECT,
             properties: {
               id: { type: Type.STRING },
-              originalPart: { type: Type.STRING, description: 'The specific incorrect word or phrase' },
-              options: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Three options including the correct one' },
-              correctIndex: { type: Type.INTEGER, description: 'The 0-based index of the correct option' },
-              explanation: { type: Type.STRING, description: 'Why this is correct' },
+              originalPart: { type: Type.STRING },
+              options: { type: Type.ARRAY, items: { type: Type.STRING } },
+              correctIndex: { type: Type.INTEGER },
+              explanation: { type: Type.STRING },
               type: { type: Type.STRING, enum: ['grammar', 'spelling', 'vocabulary', 'phrasing'] }
             },
             required: ['id', 'originalPart', 'options', 'correctIndex', 'explanation', 'type']
@@ -96,9 +84,9 @@ export async function speakText(text: string, tone: ToneType): Promise<Uint8Arra
   };
 
   try {
-    const response = await ai().models.generateContent({
+    const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Read this ${tone} text naturally: ${text}` }] }],
+      contents: [{ parts: [{ text: text }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
