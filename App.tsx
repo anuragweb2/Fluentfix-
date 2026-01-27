@@ -251,9 +251,8 @@ export default function App() {
             )}
 
             {!result && !error && status !== AppStatus.LOADING && (
-              <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-10">
+              <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-5">
                 <Logo />
-                <p className="mt-4 text-sm font-black uppercase tracking-widest">Engine Ready</p>
               </div>
             )}
 
@@ -273,7 +272,7 @@ export default function App() {
                 Optimised for {result.tone} Clarity
               </span>
             ) : (
-              <span className="text-[9px] font-black text-black/10 uppercase tracking-[0.3em]">Awaiting Instruction</span>
+              <span className="text-[9px] font-black text-black/5 uppercase tracking-[0.3em] select-none italic">Awaiting Submission</span>
             )}
           </footer>
         </section>
@@ -290,7 +289,7 @@ export default function App() {
           </div>
           
           <div className="w-full flex flex-col md:flex-row items-center justify-between gap-6 opacity-40 hover:opacity-100 transition-opacity">
-            <span className="text-[10px] font-black text-black uppercase tracking-[0.4em]">&copy; {new Date().getFullYear()} FluentFix Protocol — v5.8 CORE</span>
+            <span className="text-[10px] font-black text-black uppercase tracking-[0.4em]">&copy; {new Date().getFullYear()} FluentFix Protocol — v6.0 CORE</span>
             <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em]">
               <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span>Secure Sync On</span></div>
               <a href="#" className="hover:text-indigo-600 transition-colors underline decoration-black/20 underline-offset-4">Documentation</a>
