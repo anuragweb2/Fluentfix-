@@ -2,11 +2,18 @@
 import React from 'react';
 
 export const Logo = () => (
-  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="40" height="40" rx="12" fill="currentColor" />
+  <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path 
-      d="M24 12C21.5 12 20 13.5 20 16V19H24V23H20V32H16V23H13V19H16V16C16 12 18.5 9.5 22.5 9.5C24 9.5 25.5 10 26 10.5L25 14C24.5 13.8 24.3 12 24 12Z" 
-      fill="white" 
+      d="M35 20H75V45H55L35 20Z" 
+      fill="currentColor"
+    />
+    <path 
+      d="M35 45H55L75 70H35V45Z" 
+      fill="currentColor"
+    />
+    <path 
+      d="M35 70H55V95L35 70Z" 
+      fill="currentColor"
     />
   </svg>
 );

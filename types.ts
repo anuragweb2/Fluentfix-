@@ -1,5 +1,6 @@
 
 export type ToneType = 'Professional' | 'Friendly' | 'Casual' | 'Academic' | 'Standard';
+export type AppMode = 'EDITOR' | 'LEARNING';
 
 export interface CorrectionResult {
   id: string;
@@ -7,6 +8,15 @@ export interface CorrectionResult {
   corrected: string;
   tone: ToneType;
   timestamp: number;
+}
+
+export interface Challenge {
+  id: string;
+  originalPart: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  type: 'grammar' | 'spelling' | 'vocabulary' | 'phrasing';
 }
 
 export enum AppStatus {
