@@ -2,6 +2,7 @@
 export type ToneType = 'Professional' | 'Friendly' | 'Casual' | 'Academic' | 'Standard';
 
 export interface CorrectionResult {
+  id: string;
   original: string;
   corrected: string;
   tone: ToneType;
