@@ -1,32 +1,71 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { ToneType } from "../types.ts";
 
-export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    // We throw internally, but App.tsx handles this gracefully
-    throw new Error("API_KEY_NOT_FOUND");
-  }
+const ai = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
-  const ai = new GoogleGenAI({ apiKey });
+export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
+  // Use Pro for heavy-lifting tones, Flash for speed on others
+  const modelName = (tone === 'Academic' || tone === 'Professional') ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
   
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+    const response = await ai().models.generateContent({
+      model: modelName,
       contents: text,
       config: {
-        systemInstruction: `Linguistic Expert. Fix grammar, spelling, and phrasing. Tone: ${tone}. ${humanize ? 'Humanize phrasing rhythm.' : ''} Rule: Return ONLY corrected text. No explanations.`,
-        temperature: humanize ? 0.4 : 0,
-        topP: 0.8,
+        systemInstruction: `Act as a senior linguistic editor.
+        Task: Correct grammar, spelling, punctuation, and phrasing.
+        Current Tone: ${tone}.
+        ${humanize ? 'Constraint: Use natural, rhythmic phrasing that mimics human speech patterns. Avoid predictable AI sentence structures.' : 'Constraint: Ensure maximum clarity and precision.'}
+        Output: Return ONLY the improved version. No meta-commentary.`,
+        temperature: humanize ? 0.7 : 0.1,
+        topP: 0.95,
         thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
     return response.text?.trim() || text;
-  } catch (error: any) {
-    console.error("Linguistic Engine failure:", error);
-    // Return original text if anything goes wrong to avoid breaking UI
+  } catch (error) {
+    console.error("Linguistic Engine Error:", error);
     return text;
+  }
+}
+
+export async function speakText(text: string, tone: ToneType): Promise<ArrayBuffer> {
+  const voiceMap: Record<ToneType, string> = {
+    'Standard': 'Kore',
+    'Professional': 'Charon',
+    'Friendly': 'Puck',
+    'Casual': 'Zephyr',
+    'Academic': 'Fenrir'
+  };
+
+  try {
+    const response = await ai().models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: `Read this ${tone} text naturally: ${text}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voiceMap[tone] || 'Kore' },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error("No audio returned");
+
+    const binaryString = atob(base64Audio);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  } catch (error) {
+    console.error("TTS Engine Error:", error);
+    throw error;
   }
 }
