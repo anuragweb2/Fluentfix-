@@ -330,13 +330,23 @@ export default function App() {
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white p-10 text-center">
                 <div className="text-red-500 mb-6 scale-[2]"><EraserIcon /></div>
                 <h4 className="text-xl font-black uppercase tracking-widest text-slate-900 mb-2">Synthesis Interrupted</h4>
-                <p className="text-slate-400 text-sm mb-8 font-medium">We encountered a temporary disruption. Please try again in a moment.</p>
-                <button 
-                  onClick={handleProcess}
-                  className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all"
-                >
-                  Re-Attempt Analysis
-                </button>
+                <p className="text-slate-400 text-sm mb-8 font-medium">We encountered a temporary disruption. This usually happens if the AI key is invalid or not yet selected. Please try re-analyzing.</p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={handleProcess}
+                    className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all"
+                  >
+                    Re-Attempt Analysis
+                  </button>
+                  {typeof (window as any).aistudio !== 'undefined' && (
+                    <button 
+                      onClick={() => (window as any).aistudio.openSelectKey()}
+                      className="px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                    >
+                      Reset Key
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             

@@ -3,6 +3,19 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ToneType, Challenge } from "../types.ts";
 
 /**
+ * Ensures the API key is accessible from the environment.
+ * In Studio environments, this triggers the platform's native key selection.
+ */
+async function ensureEnvironmentReady() {
+  if (typeof (window as any).aistudio !== 'undefined') {
+    const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+    if (!hasKey) {
+      await (window as any).aistudio.openSelectKey();
+    }
+  }
+}
+
+/**
  * Helper to clean JSON strings that might contain markdown backticks
  */
 function cleanJsonString(jsonStr: string): string {
@@ -26,7 +39,9 @@ function decode(base64: string): Uint8Array {
  * Linguistic Correction Engine
  */
 export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
-  // Always create instance right before call as per guidelines
+  await ensureEnvironmentReady();
+  
+  // Rule: Must use new GoogleGenAI({ apiKey: process.env.API_KEY })
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
@@ -51,6 +66,7 @@ Output: Return ONLY the fixed text. No commentary or metadata.`,
  * Learning Challenge Engine
  */
 export async function generateChallenges(text: string): Promise<Challenge[]> {
+  await ensureEnvironmentReady();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -83,6 +99,7 @@ export async function generateChallenges(text: string): Promise<Challenge[]> {
  * High-Quality Speech Synthesis
  */
 export async function speakText(text: string, tone: ToneType): Promise<Uint8Array> {
+  await ensureEnvironmentReady();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const voiceMap: Record<ToneType, string> = {
     'Standard': 'Kore',
