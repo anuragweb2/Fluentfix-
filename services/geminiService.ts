@@ -3,15 +3,24 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ToneType, Challenge } from "../types.ts";
 
 /**
- * Utility to ensure API key is selected in Studio environments
+ * Validates and ensures the API key is present.
+ * Throws a specific error if the key is missing so the UI can prompt the user.
  */
-async function ensureApiKey() {
-  if (typeof (window as any).aistudio !== 'undefined') {
-    const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-    if (!hasKey) {
-      await (window as any).aistudio.openSelectKey();
+async function getAiClient() {
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+    if (typeof (window as any).aistudio !== 'undefined') {
+      // In Studio environment, we can prompt for a key selection
+      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        await (window as any).aistudio.openSelectKey();
+      }
     }
+    throw new Error("API_KEY_MISSING");
   }
+
+  return new GoogleGenAI({ apiKey });
 }
 
 /**
@@ -38,8 +47,7 @@ function cleanJsonString(jsonStr: string): string {
  * Linguistic Correction Engine
  */
 export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
-  await ensureApiKey();
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = await getAiClient();
   
   try {
     const response = await ai.models.generateContent({
@@ -59,6 +67,7 @@ Output: Return ONLY the fixed text. No commentary or metadata.`,
     if (!output) throw new Error("Empty response from AI");
     return output;
   } catch (error: any) {
+    // Rule: Handle "Requested entity was not found" by prompting for key again
     if (error.message?.includes("Requested entity was not found") && typeof (window as any).aistudio !== 'undefined') {
       await (window as any).aistudio.openSelectKey();
     }
@@ -71,8 +80,7 @@ Output: Return ONLY the fixed text. No commentary or metadata.`,
  * Learning Challenge Engine
  */
 export async function generateChallenges(text: string): Promise<Challenge[]> {
-  await ensureApiKey();
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = await getAiClient();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -109,8 +117,7 @@ export async function generateChallenges(text: string): Promise<Challenge[]> {
  * High-Quality Speech Synthesis
  */
 export async function speakText(text: string, tone: ToneType): Promise<Uint8Array> {
-  await ensureApiKey();
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = await getAiClient();
   const voiceMap: Record<ToneType, string> = {
     'Standard': 'Kore',
     'Professional': 'Charon',

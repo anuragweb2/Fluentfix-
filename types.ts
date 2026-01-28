@@ -23,5 +23,6 @@ export enum AppStatus {
   IDLE = 'IDLE',
   LOADING = 'LOADING',
   SUCCESS = 'SUCCESS',
-  ERROR = 'ERROR'
+  ERROR = 'ERROR',
+  NEEDS_KEY = 'NEEDS_KEY'
 }
