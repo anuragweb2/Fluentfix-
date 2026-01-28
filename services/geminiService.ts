@@ -3,7 +3,19 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ToneType, Challenge } from "../types.ts";
 
 /**
- * Standard PCM decoding for high-fidelity audio output.
+ * Utility to ensure API key is selected in Studio environments
+ */
+async function ensureApiKey() {
+  if (typeof (window as any).aistudio !== 'undefined') {
+    const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+    if (!hasKey) {
+      await (window as any).aistudio.openSelectKey();
+    }
+  }
+}
+
+/**
+ * PCM decoding for high-fidelity audio output.
  */
 function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -16,10 +28,17 @@ function decode(base64: string): Uint8Array {
 }
 
 /**
+ * Helper to clean JSON strings that might contain markdown backticks
+ */
+function cleanJsonString(jsonStr: string): string {
+  return jsonStr.replace(/```json\n?|```/g, '').trim();
+}
+
+/**
  * Linguistic Correction Engine
- * Optimized for 'gemini-3-flash-preview' for sub-second response times.
  */
 export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
+  await ensureApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
@@ -33,14 +52,18 @@ Style: ${humanize ? 'Human-like professional' : 'Concise & Clear'}.
 Output: Return ONLY the fixed text. No commentary or metadata.`,
         temperature: humanize ? 0.4 : 0.1,
         topP: 0.95,
-        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
-    return response.text?.trim() || text;
-  } catch (error) {
+    const output = response.text?.trim();
+    if (!output) throw new Error("Empty response from AI");
+    return output;
+  } catch (error: any) {
+    if (error.message?.includes("Requested entity was not found") && typeof (window as any).aistudio !== 'undefined') {
+      await (window as any).aistudio.openSelectKey();
+    }
     console.error("Correction Error:", error);
-    return text;
+    throw error;
   }
 }
 
@@ -48,6 +71,7 @@ Output: Return ONLY the fixed text. No commentary or metadata.`,
  * Learning Challenge Engine
  */
 export async function generateChallenges(text: string): Promise<Challenge[]> {
+  await ensureApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
@@ -69,15 +93,15 @@ export async function generateChallenges(text: string): Promise<Challenge[]> {
             },
             required: ['id', 'originalPart', 'options', 'correctIndex', 'explanation', 'type']
           }
-        },
-        thinkingConfig: { thinkingBudget: 0 }
+        }
       }
     });
 
-    return JSON.parse(response.text || "[]");
+    const cleaned = cleanJsonString(response.text || "[]");
+    return JSON.parse(cleaned);
   } catch (error) {
     console.error("Challenge Gen Error:", error);
-    return [];
+    throw error;
   }
 }
 
@@ -85,6 +109,7 @@ export async function generateChallenges(text: string): Promise<Challenge[]> {
  * High-Quality Speech Synthesis
  */
 export async function speakText(text: string, tone: ToneType): Promise<Uint8Array> {
+  await ensureApiKey();
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const voiceMap: Record<ToneType, string> = {
     'Standard': 'Kore',
