@@ -74,14 +74,6 @@ export default function App() {
     }, 400);
   };
 
-  const handleConnectKey = async () => {
-    if (typeof (window as any).aistudio !== 'undefined') {
-      await (window as any).aistudio.openSelectKey();
-      // After opening, let's reset to idle so user can try again
-      setStatus(AppStatus.IDLE);
-    }
-  };
-
   const handleProcess = useCallback(async () => {
     const val = inputText.trim();
     if (!val || status === AppStatus.LOADING) return;
@@ -112,11 +104,7 @@ export default function App() {
       setStatus(AppStatus.SUCCESS);
     } catch (e: any) {
       console.error(e);
-      if (e.message === "API_KEY_MISSING") {
-        setStatus(AppStatus.NEEDS_KEY);
-      } else {
-        setStatus(AppStatus.ERROR);
-      }
+      setStatus(AppStatus.ERROR);
     }
   }, [inputText, selectedTone, mode, humanize, isPlaying, status]);
 
@@ -154,9 +142,6 @@ export default function App() {
       source.start();
     } catch (e: any) {
       console.error(e);
-      if (e.message === "API_KEY_MISSING") {
-        setStatus(AppStatus.NEEDS_KEY);
-      }
       setIsPlaying(false);
     }
   };
@@ -179,7 +164,7 @@ export default function App() {
     <div className={`min-h-screen bg-[#FAFAFB] text-slate-900 flex flex-col font-sans selection:bg-black selection:text-white transition-opacity duration-500 ${isTransitioning ? 'opacity-50' : 'opacity-100'}`}>
       
       {/* Status Bar */}
-      <div className={`h-1.5 w-full fixed top-0 left-0 z-50 transition-all duration-700 ${status === AppStatus.LOADING ? 'bg-indigo-600 animate-pulse' : status === AppStatus.ERROR || status === AppStatus.NEEDS_KEY ? 'bg-red-500' : 'bg-transparent'}`} />
+      <div className={`h-1.5 w-full fixed top-0 left-0 z-50 transition-all duration-700 ${status === AppStatus.LOADING ? 'bg-indigo-600 animate-pulse' : status === AppStatus.ERROR ? 'bg-red-500' : 'bg-transparent'}`} />
 
       <nav className="sticky top-0 bg-white/70 backdrop-blur-2xl border-b border-slate-100 z-40 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -295,10 +280,10 @@ export default function App() {
         </section>
 
         {/* OUTPUT PANEL */}
-        <section className={`rounded-[2.5rem] border flex flex-col relative overflow-hidden transition-all duration-700 ${result || challenges.length > 0 || status === AppStatus.NEEDS_KEY ? 'bg-white border-slate-100 shadow-2xl shadow-slate-200/50' : 'bg-[#F2F3F7]/50 border-dashed border-slate-200'}`}>
+        <section className={`rounded-[2.5rem] border flex flex-col relative overflow-hidden transition-all duration-700 ${result || challenges.length > 0 ? 'bg-white border-slate-100 shadow-2xl shadow-slate-200/50' : 'bg-[#F2F3F7]/50 border-dashed border-slate-200'}`}>
           <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-white/50 backdrop-blur-md">
             <div className="flex items-center gap-3">
-              <div className={`w-1.5 h-4 rounded-full transition-colors duration-500 ${status === AppStatus.SUCCESS ? 'bg-emerald-500' : status === AppStatus.ERROR || status === AppStatus.NEEDS_KEY ? 'bg-red-500' : 'bg-slate-200'}`} />
+              <div className={`w-1.5 h-4 rounded-full transition-colors duration-500 ${status === AppStatus.SUCCESS ? 'bg-emerald-500' : status === AppStatus.ERROR ? 'bg-red-500' : 'bg-slate-200'}`} />
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 {mode === 'EDITOR' ? 'Linguistic Refinement' : 'Learning Module'}
               </h3>
@@ -341,46 +326,17 @@ export default function App() {
               </div>
             )}
 
-            {status === AppStatus.NEEDS_KEY && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white p-10 text-center animate-in fade-in">
-                <div className="text-amber-500 mb-6 scale-[1.5]"><LightningIcon /></div>
-                <h4 className="text-xl font-black uppercase tracking-widest text-slate-900 mb-2">AI Key Required</h4>
-                <p className="text-slate-400 text-sm mb-8 font-medium">To proceed, please connect an API key from a paid GCP project via the secure selection dialog.</p>
-                <div className="flex flex-col gap-3">
-                   <button 
-                    onClick={handleConnectKey}
-                    className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl shadow-indigo-100"
-                  >
-                    Connect AI Connection
-                  </button>
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-all uppercase tracking-widest">
-                    View Billing Documentation
-                  </a>
-                </div>
-              </div>
-            )}
-
             {status === AppStatus.ERROR && (
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white p-10 text-center">
                 <div className="text-red-500 mb-6 scale-[2]"><EraserIcon /></div>
                 <h4 className="text-xl font-black uppercase tracking-widest text-slate-900 mb-2">Synthesis Interrupted</h4>
-                <p className="text-slate-400 text-sm mb-8 font-medium">We encountered a temporary disruption. This usually happens if the API key is invalid or not yet selected.</p>
-                <div className="flex gap-4">
-                  <button 
-                    onClick={handleProcess}
-                    className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all"
-                  >
-                    Re-Attempt Analysis
-                  </button>
-                  {typeof (window as any).aistudio !== 'undefined' && (
-                    <button 
-                      onClick={handleConnectKey}
-                      className="px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
-                    >
-                      Reset Key
-                    </button>
-                  )}
-                </div>
+                <p className="text-slate-400 text-sm mb-8 font-medium">We encountered a temporary disruption. Please try again in a moment.</p>
+                <button 
+                  onClick={handleProcess}
+                  className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all"
+                >
+                  Re-Attempt Analysis
+                </button>
               </div>
             )}
             
@@ -432,7 +388,7 @@ export default function App() {
                    </div>
                  ))}
                </div>
-            ) : (status !== AppStatus.NEEDS_KEY && status !== AppStatus.ERROR) && (
+            ) : status !== AppStatus.ERROR && (
               <div className="h-full flex flex-col items-center justify-center text-center opacity-10 select-none pointer-events-none pb-20">
                 <div className="scale-[2.5] mb-12"><Logo /></div>
                 <h2 className="text-5xl font-black uppercase tracking-[0.6em] leading-tight">Studio<br/>Ready</h2>

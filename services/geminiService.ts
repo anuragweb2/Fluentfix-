@@ -3,24 +3,10 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ToneType, Challenge } from "../types.ts";
 
 /**
- * Validates and ensures the API key is present.
- * Throws a specific error if the key is missing so the UI can prompt the user.
+ * Helper to clean JSON strings that might contain markdown backticks
  */
-async function getAiClient() {
-  const apiKey = process.env.API_KEY;
-
-  if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    if (typeof (window as any).aistudio !== 'undefined') {
-      // In Studio environment, we can prompt for a key selection
-      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        await (window as any).aistudio.openSelectKey();
-      }
-    }
-    throw new Error("API_KEY_MISSING");
-  }
-
-  return new GoogleGenAI({ apiKey });
+function cleanJsonString(jsonStr: string): string {
+  return jsonStr.replace(/```json\n?|```/g, '').trim();
 }
 
 /**
@@ -37,87 +23,67 @@ function decode(base64: string): Uint8Array {
 }
 
 /**
- * Helper to clean JSON strings that might contain markdown backticks
- */
-function cleanJsonString(jsonStr: string): string {
-  return jsonStr.replace(/```json\n?|```/g, '').trim();
-}
-
-/**
  * Linguistic Correction Engine
  */
 export async function correctText(text: string, tone: ToneType = 'Standard', humanize: boolean = false): Promise<string> {
-  const ai = await getAiClient();
+  // Always create instance right before call as per guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: text,
-      config: {
-        systemInstruction: `Professional Linguistic Editor: Correct grammar, spelling, and phrasing errors. 
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: text,
+    config: {
+      systemInstruction: `Professional Linguistic Editor: Correct grammar, spelling, and phrasing errors. 
 Tone: ${tone}. 
 Style: ${humanize ? 'Human-like professional' : 'Concise & Clear'}. 
 Output: Return ONLY the fixed text. No commentary or metadata.`,
-        temperature: humanize ? 0.4 : 0.1,
-        topP: 0.95,
-      },
-    });
+      temperature: humanize ? 0.4 : 0.1,
+      topP: 0.95,
+    },
+  });
 
-    const output = response.text?.trim();
-    if (!output) throw new Error("Empty response from AI");
-    return output;
-  } catch (error: any) {
-    // Rule: Handle "Requested entity was not found" by prompting for key again
-    if (error.message?.includes("Requested entity was not found") && typeof (window as any).aistudio !== 'undefined') {
-      await (window as any).aistudio.openSelectKey();
-    }
-    console.error("Correction Error:", error);
-    throw error;
-  }
+  const output = response.text?.trim();
+  if (!output) throw new Error("Empty response from AI");
+  return output;
 }
 
 /**
  * Learning Challenge Engine
  */
 export async function generateChallenges(text: string): Promise<Challenge[]> {
-  const ai = await getAiClient();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Create 3 interactive grammar/vocabulary challenges for: "${text}"`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              originalPart: { type: Type.STRING },
-              options: { type: Type.ARRAY, items: { type: Type.STRING } },
-              correctIndex: { type: Type.INTEGER },
-              explanation: { type: Type.STRING },
-              type: { type: Type.STRING, enum: ['grammar', 'spelling', 'vocabulary', 'phrasing'] }
-            },
-            required: ['id', 'originalPart', 'options', 'correctIndex', 'explanation', 'type']
-          }
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: `Create 3 interactive grammar/vocabulary challenges for: "${text}"`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            originalPart: { type: Type.STRING },
+            options: { type: Type.ARRAY, items: { type: Type.STRING } },
+            correctIndex: { type: Type.INTEGER },
+            explanation: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ['grammar', 'spelling', 'vocabulary', 'phrasing'] }
+          },
+          required: ['id', 'originalPart', 'options', 'correctIndex', 'explanation', 'type']
         }
       }
-    });
+    }
+  });
 
-    const cleaned = cleanJsonString(response.text || "[]");
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error("Challenge Gen Error:", error);
-    throw error;
-  }
+  const cleaned = cleanJsonString(response.text || "[]");
+  return JSON.parse(cleaned);
 }
 
 /**
  * High-Quality Speech Synthesis
  */
 export async function speakText(text: string, tone: ToneType): Promise<Uint8Array> {
-  const ai = await getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const voiceMap: Record<ToneType, string> = {
     'Standard': 'Kore',
     'Professional': 'Charon',
@@ -126,26 +92,21 @@ export async function speakText(text: string, tone: ToneType): Promise<Uint8Arra
     'Academic': 'Fenrir'
   };
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: text }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceMap[tone] || 'Kore' },
-          },
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-tts",
+    contents: [{ parts: [{ text: text }] }],
+    config: {
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: voiceMap[tone] || 'Kore' },
         },
       },
-    });
+    },
+  });
 
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) throw new Error("Audio generation failed");
+  const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!base64Audio) throw new Error("Audio generation failed");
 
-    return decode(base64Audio);
-  } catch (error) {
-    console.error("TTS Error:", error);
-    throw error;
-  }
+  return decode(base64Audio);
 }
